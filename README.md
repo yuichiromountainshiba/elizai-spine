@@ -1,19 +1,18 @@
 # Flask Voice Agent Starter
 
-A simple Flask application that demonstrates how to use Deepgram's Voice Agent API to create an interactive voice interface.
+Start building interactive voice experiences with Deepgram's Voice Agent API using Python Flask starter application. This project demonstrates how to create a voice agent that can engage in natural conversations using Deepgram's advanced AI capabilities.
 
-## Features
+## What is Deepgram?
 
-- Real-time voice interaction with Deepgram's Voice Agent
-- Web-based interface with microphone support
-- Server-Sent Events for real-time updates
-- Minimal UI with focus on functionality
+[Deepgram's](https://deepgram.com/) voice AI platform provides APIs for speech-to-text, text-to-speech, and full speech-to-speech voice agents. Over 200,000+ developers use Deepgram to build voice AI products and features.
+
 
 ## Prerequisites
 
 - Python 3.8 or higher
 - Deepgram API key
 - Modern web browser with microphone support
+- [Port Audio](https://www.portaudio.com/) installed locally
 
 ## Setup
 
@@ -53,9 +52,7 @@ python app.py
 
 ## Project Structure
 
-> be sure to set the repo-name in the issue URL.
-
-- [Open an issue in this repository](https://github.com/deepgram-starters/{repo-name]/issues/new)
+- [Open an issue in this repository](https://github.com/deepgram-starters/flask-voice-agent/issues/new)
 - [Join the Deepgram Github Discussions Community](https://github.com/orgs/deepgram/discussions)
 - [Join the Deepgram Discord Community](https://discord.gg/xWRaCDBtW4)
 

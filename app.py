@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, request
 from deepgram import (
     DeepgramClient,
     DeepgramClientOptions,
@@ -6,6 +6,8 @@ from deepgram import (
     SettingsOptions,
     FunctionCallRequest,
     FunctionCallResponse,
+    Input,
+    Output,
 )
 import os
 import json
@@ -16,8 +18,8 @@ app = Flask(__name__)
 config = DeepgramClientOptions(
     options={
         "keepalive": "true",
-        "microphone_record": "true",
-        "speaker_playback": "true",
+        "microphone_record": "false",  # We'll handle audio through the browser
+        "speaker_playback": "false",   # We'll handle audio through the browser
     }
 )
 
@@ -26,67 +28,95 @@ dg_connection = deepgram.agent.websocket.v("1")
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if request.headers.get('Upgrade') == 'websocket':
+        def generate():
+            options = SettingsOptions()
 
-@app.route('/ws')
-def websocket():
-    def generate():
-        options = SettingsOptions()
-        options.agent.think.provider.type = "open_ai"
-        options.agent.think.provider.model = "gpt-4-mini"
-        options.agent.think.prompt = "You are a helpful AI assistant."
-        options.greeting = "Hello, this is a text to speech example using Deepgram."
-        options.agent.listen.provider.keyterms = ["hello", "goodbye"]
-        options.agent.listen.provider.model = "nova-3"
-        options.agent.listen.provider.type = "deepgram"
-        options.language = "en"
-
-        def on_open(self, open, **kwargs):
-            yield f"data: {json.dumps({'type': 'open', 'data': open})}\n\n"
-
-        def on_welcome(self, welcome, **kwargs):
-            yield f"data: {json.dumps({'type': 'welcome', 'data': welcome})}\n\n"
-
-        def on_conversation_text(self, conversation_text, **kwargs):
-            yield f"data: {json.dumps({'type': 'conversation', 'data': conversation_text})}\n\n"
-
-        def on_agent_thinking(self, agent_thinking, **kwargs):
-            yield f"data: {json.dumps({'type': 'thinking', 'data': agent_thinking})}\n\n"
-
-        def on_function_call_request(self, function_call_request: FunctionCallRequest, **kwargs):
-            response = FunctionCallResponse(
-                function_call_id=function_call_request.function_call_id,
-                output="Function response here"
+            # Configure audio input settings
+            options.audio.input = Input(
+                encoding="linear16",
+                sample_rate=24000
             )
-            dg_connection.send_function_call_response(response)
-            yield f"data: {json.dumps({'type': 'function_call', 'data': function_call_request})}\n\n"
 
-        def on_agent_started_speaking(self, agent_started_speaking, **kwargs):
-            yield f"data: {json.dumps({'type': 'agent_speaking', 'data': agent_started_speaking})}\n\n"
+            # Configure audio output settings
+            options.audio.output = Output(
+                encoding="linear16",
+                sample_rate=24000,
+                container="none"
+            )
 
-        def on_error(self, error, **kwargs):
-            yield f"data: {json.dumps({'type': 'error', 'data': error})}\n\n"
+            # LLM provider configuration
+            options.agent.think.provider.type = "open_ai"
+            options.agent.think.provider.model = "gpt-4o-mini"
+            options.agent.think.prompt = (
+                "You are a helpful voice assistant created by Deepgram. "
+                "Your responses should be friendly, human-like, and conversational. "
+                "Always keep your answers concise—1-2 sentences, no more than 120 characters.\n\n"
+                "When responding to a user's message, follow these guidelines:\n"
+                "- If the user's message is empty, respond with an empty message.\n"
+                "- Ask follow-up questions to engage the user, but only one question at a time.\n"
+                "- Keep your responses unique and avoid repetition.\n"
+                "- If a question is unclear or ambiguous, ask for clarification before answering.\n"
+                "- If asked about your well-being, provide a brief response about how you're feeling.\n\n"
+                "Remember that you have a voice interface. You can listen and speak, and all your "
+                "responses will be spoken aloud."
+            )
 
-        # Register event handlers
-        dg_connection.on(AgentWebSocketEvents.Open, on_open)
-        dg_connection.on(AgentWebSocketEvents.Welcome, on_welcome)
-        dg_connection.on(AgentWebSocketEvents.ConversationText, on_conversation_text)
-        dg_connection.on(AgentWebSocketEvents.AgentThinking, on_agent_thinking)
-        dg_connection.on(AgentWebSocketEvents.FunctionCallRequest, on_function_call_request)
-        dg_connection.on(AgentWebSocketEvents.AgentStartedSpeaking, on_agent_started_speaking)
-        dg_connection.on(AgentWebSocketEvents.Error, on_error)
+            # Deepgram provider configuration
+            options.agent.listen.provider.keyterms = ["hello", "goodbye"]
+            options.agent.listen.provider.model = "nova-3"
+            options.agent.listen.provider.type = "deepgram"
+            options.agent.speak.provider.type = "deepgram"
 
-        if not dg_connection.start(options):
-            yield f"data: {json.dumps({'type': 'error', 'data': 'Failed to start connection'})}\n\n"
-            return
+            # Event handlers
+            def on_open(self, open, **kwargs):
+                yield f"data: {json.dumps({'type': 'open', 'data': open})}\n\n"
 
-        try:
-            while True:
-                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
-        finally:
-            dg_connection.finish()
+            def on_welcome(self, welcome, **kwargs):
+                yield f"data: {json.dumps({'type': 'welcome', 'data': welcome})}\n\n"
 
-    return Response(generate(), mimetype='text/event-stream')
+            def on_conversation_text(self, conversation_text, **kwargs):
+                yield f"data: {json.dumps({'type': 'conversation', 'data': conversation_text})}\n\n"
+
+            def on_agent_thinking(self, agent_thinking, **kwargs):
+                yield f"data: {json.dumps({'type': 'thinking', 'data': agent_thinking})}\n\n"
+
+            def on_function_call_request(self, function_call_request: FunctionCallRequest, **kwargs):
+                response = FunctionCallResponse(
+                    function_call_id=function_call_request.function_call_id,
+                    output="Function response here"
+                )
+                dg_connection.send_function_call_response(response)
+                yield f"data: {json.dumps({'type': 'function_call', 'data': function_call_request})}\n\n"
+
+            def on_agent_started_speaking(self, agent_started_speaking, **kwargs):
+                yield f"data: {json.dumps({'type': 'agent_speaking', 'data': agent_started_speaking})}\n\n"
+
+            def on_error(self, error, **kwargs):
+                yield f"data: {json.dumps({'type': 'error', 'data': error})}\n\n"
+
+            # Register event handlers
+            dg_connection.on(AgentWebSocketEvents.Open, on_open)
+            dg_connection.on(AgentWebSocketEvents.Welcome, on_welcome)
+            dg_connection.on(AgentWebSocketEvents.ConversationText, on_conversation_text)
+            dg_connection.on(AgentWebSocketEvents.AgentThinking, on_agent_thinking)
+            dg_connection.on(AgentWebSocketEvents.FunctionCallRequest, on_function_call_request)
+            dg_connection.on(AgentWebSocketEvents.AgentStartedSpeaking, on_agent_started_speaking)
+            dg_connection.on(AgentWebSocketEvents.Error, on_error)
+
+            if not dg_connection.start(options):
+                yield f"data: {json.dumps({'type': 'error', 'data': 'Failed to start connection'})}\n\n"
+                return
+
+            try:
+                while True:
+                    yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+            finally:
+                dg_connection.finish()
+
+        return Response(generate(), mimetype='text/event-stream')
+    else:
+        return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=3000, host='localhost')
