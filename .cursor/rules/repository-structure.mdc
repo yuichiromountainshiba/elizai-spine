@@ -6,7 +6,7 @@ alwaysApply: false
 # Repository Structure Requirements
 
 ## Required Files
-- MUST have an app file, i.e. `index.ts`
+- MUST have an app file, i.e. `app.py`
 - MUST have a `README.md` file
 - MUST have a `deepgram.toml` file
 - MUST have a `LICENSE` file
@@ -14,7 +14,6 @@ alwaysApply: false
 - MUST have a `SECURITY.md` file
 - MUST have a `CODE_OF_CONDUCT.md` file
 - MUST have a `.gitignore` file
-- MUST have a `sample.env` file
 - SHOULD have a dependency management file
 - COULD have a dependency lock file
 

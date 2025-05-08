@@ -1,81 +1,57 @@
-> INSTRUCTIONS
+# Flask Voice Agent Starter
 
-> 1. If your app requires an UI: Copy the entire contents of https://github.com/deepgram-starters/deepgram-starters-ui to the `./static/` folder.
+A simple Flask application that demonstrates how to use Deepgram's Voice Agent API to create an interactive voice interface.
 
-> 2. The configuration of the `deepgram.toml` file, is required so we can include the starter in future onboarding workflows.
+## Features
 
-> 3. Consistent naming of the project repo is important. Please don't deviate from our standards. Example repo name: [language] [use case] 
+- Real-time voice interaction with Deepgram's Voice Agent
+- Web-based interface with microphone support
+- Server-Sent Events for real-time updates
+- Minimal UI with focus on functionality
 
-> 4. Use the readme template below, don't deviate from it.
+## Prerequisites
 
-> 5. Use the [cursor rules](./.cursor/rules) with [Cursor](https://www.cursor.com/) to help build your starter more quickly!
----
+- Python 3.8 or higher
+- Deepgram API key
+- Modern web browser with microphone support
 
-# [Language] [Usecase] Starter
+## Setup
 
-> Write a brief intro for this project.
-
-## What is Deepgram?
-> Please leave this section unchanged.
-
-[Deepgram’s](https://deepgram.com/) voice AI platform provides APIs for speech-to-text, text-to-speech, and full speech-to-speech voice agents. Over 200,000+ developers use Deepgram to build voice AI products and features.
-
-## Sign-up to Deepgram
-
-> Please leave this section unchanged, unless providing a UTM on the URL.
-
-Before you start, it's essential to generate a Deepgram API key to use in this project. [Sign-up now for Deepgram and create an API key](https://console.deepgram.com/signup?jump=keys).
-
-## Quickstart
-
-> Detail the manual steps to get started.
-
-e.g.
-
-### Manual
-
-Follow these steps to get started with this starter application.
-
-#### Clone the repository
-
-Go to GitHub and [clone the repository](https://github.com/deepgram-starters/prerecorded-node-starter).
-
-#### Install dependencies
-
-Install the project dependencies.
-
+1. Clone this repository:
 ```bash
-npm install
+git clone <repository-url>
+cd flask-voice-agent
 ```
 
-#### Edit the config file
-
-> Config file can be any appropriate file for the framework/language. For e.g.
-> Node is using a config.json file, while Python is only use .env files
-
-Copy the code from `sample.env` and create a new file called `.env`. Paste in the code and enter your API key you generated in the [Deepgram console](https://console.deepgram.com/).
-
-```json
-DEEPGRAM_API_KEY=%api_key%
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-#### Run the application
-
-> If your starter has a UI, it must always run on port 8080
-
-The `dev` script will run a web and API server concurrently. Once running, you can [access the application in your browser](http://localhost:8080/).
-
+3. Set your Deepgram API key:
 ```bash
-npm start
+export DEEPGRAM_API_KEY=your_api_key_here
+```
+
+## Running the Application
+
+Start the Flask server:
+```bash
+python app.py
 ```
 
 ## Issue Reporting
 
-If you have found a bug or if you have a feature request, please report them at this repository issues section. Please do not report security vulnerabilities on the public GitHub issue tracker. The [Security Policy](./SECURITY.md) details the procedure for contacting Deepgram.
+## Usage
 
-## Getting Help
+1. Open your web browser and navigate to `http://localhost:5000`
+2. Click the "Start Speaking" button
+3. Allow microphone access when prompted
+4. Speak into your microphone
+5. The agent will respond in real-time
+6. Click "Stop Speaking" to end the session
 
-We love to hear from you so if you have questions, comments or find a bug in the project, let us know! You can either:
+## Project Structure
 
 > be sure to set the repo-name in the issue URL.
 
