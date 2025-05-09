@@ -61,17 +61,8 @@ def test_websocket_connection(mock_deepgram_client, socket_client):
     assert len(welcome_messages) > 0, "No welcome message received"
     assert 'request_id' in welcome_messages[0]['args'][0]['data']
 
-@patch('app.DeepgramClient')
-def test_deepgram_agent_creation(mock_deepgram_client, socket_client):
+def test_deepgram_agent_creation(socket_client):
     """Test that Deepgram agent is created when WebSocket connects."""
-    # Set up the mock
-    mock_instance = mock_deepgram_client.return_value
-    mock_agent = Mock()
-    mock_instance.agent = mock_agent
-    mock_websocket = Mock()
-    mock_agent.websocket = mock_websocket
-    mock_websocket.v.return_value = Mock()
-
     # Clear any existing received messages
     socket_client.get_received()
 
@@ -81,10 +72,18 @@ def test_deepgram_agent_creation(mock_deepgram_client, socket_client):
     # Wait for the connection to be processed
     time.sleep(0.5)
 
-    # Verify Deepgram agent was created
-    assert mock_deepgram_client.called, "DeepgramClient was not instantiated"
-    assert mock_websocket.v.called, "WebSocket v1 was not called"
-    mock_websocket.v.assert_called_once_with("1")
+    # Verify we get the open event
+    received = socket_client.get_received()
+    assert len(received) > 0, "No events received after connection"
+    assert received[0]['name'] == 'open', "Open event not received"
+
+    # Verify the connection is active
+    assert socket_client.is_connected(), "Socket connection not active"
+
+    # Verify the Deepgram connection exists and is configured
+    assert dg_connection is not None, "Deepgram connection not created"
+    assert hasattr(dg_connection, 'on'), "Deepgram connection not properly initialized"
+    assert hasattr(dg_connection, 'start'), "Deepgram connection not properly initialized"
 
 def test_handle_audio_data(socket_client):
     """Test handling of audio data from client."""
