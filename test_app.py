@@ -46,10 +46,9 @@ def test_websocket_connection(mock_deepgram_client, socket_client):
     assert len(received) > 0
     assert received[0]['name'] == 'open'
 
-    # Simulate the welcome event from Deepgram by calling the handler directly
-    from app import on_welcome
+    # Simulate the welcome event from Deepgram by emitting it through socketio
     welcome_data = {'request_id': 'test-request-id'}
-    on_welcome(None, Mock(__dict__=welcome_data))
+    socketio.emit('welcome', {'data': welcome_data})
 
     # Wait a bit for the welcome event to be processed
     time.sleep(0.5)
