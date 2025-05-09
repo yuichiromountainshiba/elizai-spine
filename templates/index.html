@@ -24,7 +24,7 @@
             try {
                 // Create audio context early
                 audioContext = new AudioContext({
-                    sampleRate: 24000 // Match the highest sample rate we'll use
+                    sampleRate: 16000 // Match the Deepgram sample rate
                 });
 
                 // Get microphone permission with specific constraints
@@ -32,7 +32,7 @@
                     audio: {
                         deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
                         channelCount: 1,
-                        sampleRate: 24000,
+                        sampleRate: 16000,
                         echoCancellation: false,  // Can be toggled
                         noiseSuppression: false,  // Can be toggled
                         autoGainControl: false,   // Can be toggled
@@ -47,7 +47,9 @@
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
 
                 // Connect to Socket.IO server
-                socket = io('http://localhost:3000');
+                socket = io('http://localhost:3000', {
+                    path: '/socket.io'
+                });
 
                 socket.on('connect', () => {
                     console.log('Connected to server');
@@ -62,16 +64,20 @@
                 });
 
                 socket.on('error', (data) => {
-                    console.error('Server error:', data);
+                    console.error('Server error details:', JSON.stringify(data, null, 2));
                 });
 
                 socket.on('agent_speaking', (data) => {
+                    console.log('Received agent speaking event:', data);
                     if (data.audio) {
+                        console.log('Audio data received:', data.audio.length, 'bytes');
                         const audioData = new Int16Array(data.audio);
                         audioQueue.push(audioData);
                         if (!isPlaying) {
                             playNextInQueue();
                         }
+                    } else {
+                        console.log('No audio data in agent_speaking event');
                     }
                 });
 
@@ -121,10 +127,16 @@
 
                 processor.onaudioprocess = (e) => {
                     const now = Date.now();
-                    if (socket?.readyState === WebSocket.OPEN && now - lastSendTime >= sendInterval) {
+                    if (socket?.connected && now - lastSendTime >= sendInterval) {
                         const inputData = e.inputBuffer.getChannelData(0);
                         const pcmData = convertFloatToPcm(inputData);
-                        socket.send(pcmData.buffer);
+                        console.log('Sending audio data:', {
+                            samples: pcmData.length,
+                            sampleRate: audioContext.sampleRate,
+                            interval: now - lastSendTime
+                        });
+                        // Send as binary data
+                        socket.emit('audio_data', pcmData, { binary: true });
                         lastSendTime = now;
                     }
                 };
@@ -164,27 +176,22 @@
                 // Convert Int16 to Float32 with proper scaling
                 for (let i = 0; i < audioData.length; i++) {
                     // Normalize to [-1, 1] range
-                    channelData[i] = audioData[i] / (audioData[i] >= 0 ? 0x7FFF : 0x8000);
+                    channelData[i] = audioData[i] / 32768.0;  // Simplified normalization
                 }
 
                 // Create and configure source
                 const source = audioContext.createBufferSource();
                 source.buffer = buffer;
 
-                // Create a gain node for volume control
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 1.0; // Adjust volume if needed
-
-                // Connect nodes
-                source.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                // Connect directly to destination for lower latency
+                source.connect(audioContext.destination);
 
                 // Handle playback completion
                 source.onended = () => {
                     playNextInQueue(); // Play next chunk when current one ends
                 };
 
-                // Start playback
+                // Start playback immediately
                 source.start(0);
             } catch (error) {
                 console.error('Error playing audio:', error);

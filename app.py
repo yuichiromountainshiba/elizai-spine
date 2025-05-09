@@ -14,14 +14,14 @@ import os
 import json
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", path='/socket.io')
 
 # Initialize Deepgram client
 config = DeepgramClientOptions(
     options={
         "keepalive": "true",
-        "microphone_record": "false",  # We'll handle audio through the browser
-        "speaker_playback": "false",   # We'll handle audio through the browser
+        "microphone_record": "true",    # Enable microphone recording to process audio
+        "speaker_playback": "true",     # Enable speaker playback to receive agent audio
     }
 )
 
@@ -39,13 +39,13 @@ def handle_connect():
     # Configure audio input settings
     options.audio.input = Input(
         encoding="linear16",
-        sample_rate=24000
+        sample_rate=16000  # Match the output sample rate
     )
 
     # Configure audio output settings
     options.audio.output = Output(
         encoding="linear16",
-        sample_rate=24000,
+        sample_rate=16000,
         container="none"
     )
 
@@ -72,20 +72,28 @@ def handle_connect():
     options.agent.listen.provider.type = "deepgram"
     options.agent.speak.provider.type = "deepgram"
 
+    # Add greeting
+    options.agent.greeting = "Hello! I'm your Deepgram voice assistant. How can I help you today?"
+
     # Event handlers
     def on_open(self, open, **kwargs):
+        print("Open event received:", open.__dict__)
         socketio.emit('open', {'data': open.__dict__})
 
     def on_welcome(self, welcome, **kwargs):
+        print("Welcome event received:", welcome.__dict__)
         socketio.emit('welcome', {'data': welcome.__dict__})
 
     def on_conversation_text(self, conversation_text, **kwargs):
+        print("Conversation event received:", conversation_text.__dict__)
         socketio.emit('conversation', {'data': conversation_text.__dict__})
 
     def on_agent_thinking(self, agent_thinking, **kwargs):
+        print("Thinking event received:", agent_thinking.__dict__)
         socketio.emit('thinking', {'data': agent_thinking.__dict__})
 
     def on_function_call_request(self, function_call_request: FunctionCallRequest, **kwargs):
+        print("Function call event received:", function_call_request.__dict__)
         response = FunctionCallResponse(
             function_call_id=function_call_request.function_call_id,
             output="Function response here"
@@ -94,10 +102,18 @@ def handle_connect():
         socketio.emit('function_call', {'data': function_call_request.__dict__})
 
     def on_agent_started_speaking(self, agent_started_speaking, **kwargs):
+        print("Agent speaking event received:", agent_started_speaking.__dict__)
         socketio.emit('agent_speaking', {'data': agent_started_speaking.__dict__})
 
     def on_error(self, error, **kwargs):
-        socketio.emit('error', {'data': error.__dict__})
+        print("Error event received:", error.__dict__)
+        error_data = {
+            'message': str(error),
+            'type': error.__class__.__name__,
+            'details': error.__dict__
+        }
+        print("Sending error to client:", error_data)
+        socketio.emit('error', {'data': error_data})
 
     # Register event handlers
     dg_connection.on(AgentWebSocketEvents.Open, on_open)
@@ -108,13 +124,32 @@ def handle_connect():
     dg_connection.on(AgentWebSocketEvents.AgentStartedSpeaking, on_agent_started_speaking)
     dg_connection.on(AgentWebSocketEvents.Error, on_error)
 
+    print("Starting Deepgram connection...")
     if not dg_connection.start(options):
+        print("Failed to start Deepgram connection")
         socketio.emit('error', {'data': {'message': 'Failed to start connection'}})
         return
+    print("Deepgram connection started successfully")
+
+@socketio.on('audio_data')
+def handle_audio_data(data):
+    try:
+        if dg_connection:
+            print("Received audio data:", len(data), "bytes")
+            # Convert to bytes if needed
+            if isinstance(data, list):
+                data = bytes(data)
+            dg_connection.send_audio(data)
+        else:
+            print("No Deepgram connection available")
+            socketio.emit('error', {'data': {'message': 'No Deepgram connection available'}})
+    except Exception as e:
+        print("Error handling audio data:", str(e))
+        socketio.emit('error', {'data': {'message': f'Error handling audio data: {str(e)}'}})
 
 @socketio.on('disconnect')
 def handle_disconnect():
     dg_connection.finish()
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=3000, host='localhost')
+    socketio.run(app, debug=True, port=3000, host='0.0.0.0')
