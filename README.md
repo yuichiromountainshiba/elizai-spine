@@ -18,11 +18,9 @@ Start building interactive voice experiences with Deepgram's Voice Agent API usi
 
 Follow these steps to get started with this starter application.
 
-## Setup
-
 ### Clone the repository
 
-Go to GitHub and [clone the repository](https://github.com/deepgram-starters/flask-voice-agent).
+1. Go to GitHub and [clone the repository](https://github.com/deepgram-starters/flask-voice-agent).
 
 2. Install dependencies:
 ```bash
@@ -60,8 +58,6 @@ pytest -v test_app.py
 ```
 
 ## Issue Reporting
-
-## Project Structure
 
 - [Open an issue in this repository](https://github.com/deepgram-starters/flask-voice-agent/issues/new)
 - [Join the Deepgram Github Discussions Community](https://github.com/orgs/deepgram/discussions)
