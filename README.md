@@ -43,6 +43,8 @@ python app.py
 
 ## Usage
 
+> Works best with a desktop microphone
+
 1. Open your web browser and navigate to `http://localhost:5000`
 2. Click the "Start Speaking" button
 3. Allow microphone access when prompted
