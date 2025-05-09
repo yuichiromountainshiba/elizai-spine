@@ -20,8 +20,8 @@ socketio = SocketIO(app, cors_allowed_origins="*", path='/socket.io')
 config = DeepgramClientOptions(
     options={
         "keepalive": "true",
-        "microphone_record": "true",    # Enable microphone recording to process audio
-        "speaker_playback": "true",     # Enable speaker playback to receive agent audio
+        "microphone_record": "true",
+        "speaker_playback": "true",
     }
 )
 
@@ -72,7 +72,7 @@ def handle_connect():
     options.agent.listen.provider.type = "deepgram"
     options.agent.speak.provider.type = "deepgram"
 
-    # Add greeting
+    # Sets Agent greeting
     options.agent.greeting = "Hello! I'm your Deepgram voice assistant. How can I help you today?"
 
     # Event handlers
