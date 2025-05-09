@@ -201,5 +201,11 @@ if __name__ == "__main__":
 ## Test Requirements
 - MUST have basic tests that validates the browser and agent functionality is working
 
+  Voice Agent Server
+    ✓ should start the server successfully
+    ✓ should establish WebSocket connection
+    ✓ should create Deepgram agent when WebSocket connects
+    ✓ should handle audio data from client
+
 
 

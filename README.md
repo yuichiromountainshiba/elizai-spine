@@ -14,13 +14,15 @@ Start building interactive voice experiences with Deepgram's Voice Agent API usi
 - Modern web browser with microphone support
 - [Port Audio](https://www.portaudio.com/) installed locally
 
+## Quickstart
+
+Follow these steps to get started with this starter application.
+
 ## Setup
 
-1. Clone this repository:
-```bash
-git clone <repository-url>
-cd flask-voice-agent
-```
+### Clone the repository
+
+Go to GitHub and [clone the repository](https://github.com/deepgram-starters/flask-voice-agent).
 
 2. Install dependencies:
 ```bash
@@ -39,18 +41,25 @@ Start the Flask server:
 python app.py
 ```
 
+Then open your browser and go to:
+
+```
+http://localhost:3000
+```
+
+- Allow microphone access when prompted.
+- Speak into your microphone to interact with the Deepgram Voice Agent.
+- You should hear the agent's responses played back in your browser.
+
+## Testing
+
+Test the application with:
+
+```bash
+pytest -v test_app.py
+```
+
 ## Issue Reporting
-
-## Usage
-
-> Works best with a desktop microphone
-
-1. Open your web browser and navigate to `http://localhost:5000`
-2. Click the "Start Speaking" button
-3. Allow microphone access when prompted
-4. Speak into your microphone
-5. The agent will respond in real-time
-6. Click "Stop Speaking" to end the session
 
 ## Project Structure
 
