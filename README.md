@@ -6,6 +6,9 @@ Start building interactive voice experiences with Deepgram's Voice Agent API usi
 
 [Deepgram's](https://deepgram.com/) voice AI platform provides APIs for speech-to-text, text-to-speech, and full speech-to-speech voice agents. Over 200,000+ developers use Deepgram to build voice AI products and features.
 
+## Sign-up to Deepgram
+
+Before you start, it's essential to generate a Deepgram API key to use in this project. [Sign-up now for Deepgram and create an API key](https://console.deepgram.com/signup?jump=keys).
 
 ## Prerequisites
 
