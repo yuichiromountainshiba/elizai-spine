@@ -1,14 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deepgram Voice Agent</title>
+    <title>Dr. Sing Robo MA Intake</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f7f5f2;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+            font-size: 18px;
+        }
+
+        h1 {
+            font-size: 2em;
+            font-weight: 600;
+            color: #2c2c2c;
+            margin-top: 1.5em;
+            text-align: center;
+        }
+
+        p {
+            font-size: 1.1em;
+            color: #666;
+            text-align: center;
+            margin: 0.25em 1em;
+        }
+
+        #transcription-box {
+            width: 90%;
+            max-width: 600px;
+            margin: 1.5em 0;
+            padding: 1em;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            overflow-y: auto;
+        }
+
+        #transcript {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75em;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 0.5em;
+        }
+
+        .user,
+        .assistant {
+            padding: 0.9em 1.2em;
+            border-radius: 20px;
+            max-width: 75%;
+            line-height: 1.5;
+            display: inline-block;
+            word-wrap: break-word;
+            font-size: 1.1em;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .user {
+            background: #e0dcd7;
+            color: #4a3c32;
+            align-self: flex-end;
+            text-align: right;
+            border-bottom-right-radius: 4px;
+        }
+
+        .assistant {
+            background: #dde6df;
+            color: #2f3a2e;
+            align-self: flex-start;
+            text-align: left;
+            border-bottom-left-radius: 4px;
+        }
+
+        button {
+            margin: 0.5em;
+            padding: 0.85em 1.35em;
+            font-size: 1.05em;
+            border-radius: 8px;
+            background: #a58f7f;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #8d7768;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Deepgram Voice Agent Browser Demo</h1>
-    <p>This is a demo of the Deepgram Voice Agent. It uses the <a href="https://developers.deepgram.com/reference/voice-agent-api/agent">Deepgram Voice Agent API</a>.</p>
+    <h1>Dr. Sing Robo MA Intake</h1>
+    <p>I am Dr Sing's Robot Medical Assistant.</p>
     <p>Please enable your microphone in the browser to start the conversation.</p>
     <script>
         let socket;
@@ -19,9 +114,15 @@
         let audioQueue = []; // Queue for managing incoming audio chunks
         let isPlaying = false; // Flag to track if we're currently playing audio
         let selectedDeviceId;
+        let mediaRecorder;
+        let audioStream;
+        let isRecording = true;
+        let transcriptHistory = "";
+
 
         async function init() {
             try {
+                console.log("✅ init() called");
                 // Create audio context early
                 audioContext = new AudioContext({
                     sampleRate: 16000 // Match the Deepgram sample rate
@@ -45,9 +146,11 @@
                     }
                 };
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
 
                 // Connect to Socket.IO server
-                socket = io('http://localhost:3000', {
+                //socket = io('http://localhost:3000', {
+                socket = io('https://8649-71-11-182-206.ngrok-free.app',{
                     path: '/socket.io'
                 });
 
@@ -80,6 +183,87 @@
                         console.log('No audio data in agent_speaking event');
                     }
                 });
+
+                socket.on('conversation', (event) => {
+                    console.log("🎧 Received 'conversation' event:", event);
+                    const data = event?.data;
+                    const content = data?.content;
+                    const role = data?.role;
+
+                    // if (content && role) {
+                    //     const transcriptBox = document.getElementById('transcript');
+                    //     const color = role === 'user' ? 'red' : 'black';
+
+                    //     const alignment = role === 'user' ? 'right' : 'left';
+                    //     const line = <div style="color:${color}; text-align:${alignment}; margin-bottom: 5px;">${content}</div>;
+
+
+                    //     transcriptBox.innerHTML += line;
+                    //     transcriptBox.scrollTop = transcriptBox.scrollHeight;
+                    // } else {
+                    //     console.warn('⚠️ Missing content or role:', event);
+                    // }
+                    if (content && role) {
+                        const transcriptBox = document.getElementById('transcript');
+
+                        // Create a bubble div with the appropriate class
+                        const bubble = document.createElement('div');
+                        bubble.className = role === 'user' ? 'user' : 'assistant';
+                        bubble.textContent = content;
+
+                        transcriptBox.appendChild(bubble);
+                        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+                    } else {
+                        console.warn('⚠️ Missing content or role:', event);
+                    }
+                    // Update the live transcription box
+                    //document.getElementById('transcript-box').innerText = transcriptHistory;    
+                    if (content) {
+                        transcriptHistory += `${role === 'user' ? '[Patient]' : '[Assistant]'}: ${content} \n`;
+                    }
+                });
+
+                socket.onAny((event, data) => {
+                    console.log(`📡 onAny received: ${event}`, data);
+                });
+
+                document.getElementById('restartButton').addEventListener('click', () => {
+                    // Clear the transcript visually
+                    document.getElementById('transcript').innerHTML = '';
+
+                    // Notify the server to restart the assistant
+                    if (socket && socket.connected) {
+                        socket.emit('restart');
+                        console.log('🔄 Restart request sent to server');
+                    }
+                });
+
+                document.getElementById('stopRecordingBtn').addEventListener('click', () => {
+                    socket.emit('stop_recording');
+                    console.log("🛑 Stop button clicked. Emitted 'stop_recording' to server.");
+
+                    const transcriptDivs = Array.from(document.querySelectorAll('#transcript div'));
+                    const structuredTranscript = transcriptDivs.map(div => ({
+                        role: div.classList.contains('user') ? 'user' : 'assistant',
+                        content: div.textContent
+                    }));
+
+                    fetch('/save_transcript', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ transcript: structuredTranscript })  // remove inner stringify
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('✅ Transcript sent to dashboard:', data);
+                        })
+                        .catch(error => {
+                            console.error('❌ Error sending transcript:', error);
+                        });
+
+                    document.getElementById('transcript').innerHTML += `<div style="color:gray"><em>🛑 Assistant paused.</em></div>`;
+                });
+                
 
             } catch (error) {
                 console.error('Error initializing:', error);
@@ -137,6 +321,7 @@
                         });
                         // Send as binary data
                         socket.emit('audio_data', pcmData, { binary: true });
+                        console.log
                         lastSendTime = now;
                     }
                 };
@@ -249,5 +434,12 @@
             }
         };
     </script>
+
+    <div id="transcription-box" style="padding: 1em; border: 1px solid #ccc; margin-top: 1em;">
+        <strong>Live Transcription:</strong>
+        <p id="transcript" style="white-space: pre-line;"></p>
+        </div>
+    <button id="restartButton">🔄 Restart Assistant</button>
+    <button id="stopRecordingBtn">Stop Assistant</button>
 </body>
 </html>

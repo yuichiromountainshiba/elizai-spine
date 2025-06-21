@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Intake Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #dashboard {
+            display: flex;
+            flex: 1;
+        }
+
+        #transcript-panel,
+        #summary-panel {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        #transcript-box {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+            overflow-y: auto;
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            white-space: pre-wrap;
+            background: #fff;
+        }
+
+        #summary-box {
+            flex: 1;
+            resize: none;
+            padding: 10px;
+            font-size: 14px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+        }
+
+        button {
+            padding: 8px 14px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .user {
+            color: red;
+            text-align: right;
+            margin-bottom: 5px;
+            align-self: flex-end;
+        }
+
+        .assistant {
+            color: black;
+            text-align: left;
+            margin-bottom: 5px;
+            align-self: flex-start;
+        }
+    </style>
+</head>
+<body>
+<div id="dashboard">
+    <!-- Left panel: transcript -->
+    <div id="transcript-panel">
+        <h2>Transcript</h2>
+        <div id="transcript-box"></div>
+    </div>
+
+    <!-- Right panel: summary -->
+    <div id="summary-panel">
+        <h2>Summary</h2>
+        <div id="summary-box"></div>
+        <button onclick="generateSummary()">🧠 Generate Summary</button>
+    </div>
+</div>
+
+<button onclick="resetDashboard()">🧹 Reset Dashboard</button>
+
+<script>
+    //const socket = io("http://localhost:3000", { 
+    const socket = io('https://8649-71-11-182-206.ngrok-free.app', {
+        path: "/socket.io"
+    });
+    socket.on("connect", () => {
+        console.log("✅ Connected to server");
+    });
+
+    socket.on("new_transcript", (data) => {
+        console.log("📥 Transcript received:", data.transcript);
+        const transcriptBox = document.getElementById("transcript-box");
+        transcriptBox.innerHTML = '';
+
+        // Assume transcript is already an array of { role, content }
+        const messages = data.transcript;
+        if (Array.isArray(messages)) {
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = msg.role === 'user' ? 'user' : 'assistant';
+                div.textContent = msg.content;
+                transcriptBox.appendChild(div);
+            });
+        } else {
+            console.warn("⚠️ Unexpected transcript format:", data.transcript);
+        }
+    });
+
+    socket.on("summary", (data) => {
+        console.log("📄 Summary received:", data.summary);
+        if (data.summary) {
+            document.getElementById("summary-box").innerText = data.summary;
+        }
+    });
+
+    function generateSummary() {
+        console.log("🧠 Generate Summary button clicked!");
+        const rawText = Array.from(document.querySelectorAll('#transcript-box div'))
+            .map(div => div.textContent)
+            .join("\n");
+        socket.emit("summarize", { transcript: rawText });
+    }
+
+    function resetDashboard() {
+        // Clear transcript display
+        const transcriptBox = document.getElementById("transcript-box");
+        transcriptBox.innerHTML = "";
+
+        // Clear summary display
+        const summaryBox = document.getElementById("summary-box");
+        summaryBox.innerText = "";
+
+        console.log("🧼 Dashboard reset for next patient.");
+    }
+</script>
+</body>
+</html>
