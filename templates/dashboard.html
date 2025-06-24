@@ -94,8 +94,8 @@
 <button onclick="resetDashboard()">🧹 Reset Dashboard</button>
 
 <script>
-    //const socket = io("http://localhost:3000", { 
-    const socket = io('https://8649-71-11-182-206.ngrok-free.app', {
+    //const socket = io("http://localhost:3000", {
+    const socket = io('https://lobster-advanced-specially.ngrok-free.app', {
         path: "/socket.io"
     });
     socket.on("connect", () => {

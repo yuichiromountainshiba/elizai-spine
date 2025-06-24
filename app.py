@@ -90,7 +90,7 @@ def handle_connect():
         "Ask about what caused the pain to start  triggering event/injury/accident,  duration of symptoms (back calculate the approximate date this pain started), which side the symptoms are on and which side is worse, radiating symptoms down arms or legs, aggravating/relieving factors, "
         "what they have tried: 1) medications 2) therapy (PT, acupuncture, chiropractor, massage) 3) injections "
         "(epidural steroid injections, facet injections, level, provider, percent relief, duration). "
-        "Explicitly ask or summarize and confirm if they have or had not tried physical therapy, or injections. Ask specifically if they mentioned injections, who did the injection and what date, how much relief was felt.  Make sure you ask about all these topics before starting to ask any open-ended questions like is there anything else i can help with today. Be concise and clinical. If they are complaining about neck pain, include a questions about balance changes, hand dexterity changes, or urinary changes."
+        "Explicitly ask or summarize and confirm if they have or had not tried medications, physical therapy, or injections. Ask specifically if they mentioned injections, who did the injection and what date, how much relief was felt.  Make sure you ask about all these topics before starting to ask any open-ended questions like is there anything else i can help with today. Be concise and clinical. If they are complaining about neck pain, include a questions about balance changes, hand dexterity changes, or urinary changes."
         "- If asked about your well-being, provide a brief response about how you're feeling.\n\n"
         "Remember that you have a voice interface. You can listen and speak, and all your "
         "responses will be spoken aloud."
@@ -101,6 +101,7 @@ def handle_connect():
     options.agent.listen.provider.model = "nova-3"
     options.agent.listen.provider.type = "deepgram"
     options.agent.speak.provider.type = "deepgram"
+    options.agent.speak.speed = 1.3
 
     # Sets Agent greeting
     options.agent.greeting = "Hello! I'm Dr. Sing's assistant. What brings you into the office today? Feel free to share as much details as possible."
