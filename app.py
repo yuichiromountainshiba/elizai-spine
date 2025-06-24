@@ -9,6 +9,8 @@ from deepgram import (
     FunctionCallResponse,
     Input,
     Output,
+    PrerecordedOptions,
+    FileSource
 )
 import os
 import json
@@ -17,7 +19,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 load_dotenv()
 from flask_cors import CORS
-
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app)
@@ -58,6 +60,57 @@ def dashboard():
     return render_template('dashboard.html', transcripts=saved_transcripts)
 
 
+def transcribe_audio(audio_file_path):
+    deepgram = DeepgramClient()
+
+    with open(audio_file_path, "rb") as file:
+        buffer_data = file.read()
+
+    payload: FileSource = {
+        "buffer": buffer_data,
+    }
+
+    options = PrerecordedOptions(
+        model="nova-3-medical",
+        smart_format=True,
+        diarize=True,
+        punctuate=True,
+        language="en-US"
+    )
+
+    response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, options)
+
+    try:
+        return response["results"]["channels"][0]["alternatives"][0]["paragraphs"]["transcript"]
+    except Exception as e:
+        print("❌ Could not extract transcript:", str(e))
+        return ""
+
+@app.route('/upload_scribe', methods=['POST'])
+def upload_scribe():
+    if 'file' not in request.files:
+        return jsonify({'status': 'error', 'message': 'No file uploaded'}), 400
+
+    try:
+        dg_connection.finish()
+    except:
+        pass
+
+    file = request.files['file']
+    filepath = os.path.join(os.getcwd(), "scribe.m4a")
+    file.save(filepath)
+
+    transcript_text = transcribe_audio(filepath)
+
+    if not transcript_text:
+        return jsonify({'status': 'error', 'message': 'No transcript returned'}), 500
+
+    user_transcript = [{"role": "user", "content": transcript_text.strip()}]
+    saved_transcripts.extend(user_transcript)
+    socketio.emit('scribe_transcript', {'transcript': user_transcript})
+
+    return jsonify({'status': 'success', 'transcript': user_transcript})
+
 @socketio.on('connect')
 def handle_connect():
     options = SettingsOptions()
@@ -90,10 +143,10 @@ def handle_connect():
         "Ask about what caused the pain to start  triggering event/injury/accident,  duration of symptoms (back calculate the approximate date this pain started), which side the symptoms are on and which side is worse, radiating symptoms down arms or legs, aggravating/relieving factors, "
         "what they have tried: 1) medications 2) therapy (PT, acupuncture, chiropractor, massage) 3) injections "
         "(epidural steroid injections, facet injections, level, provider, percent relief, duration). "
-        "Explicitly ask or summarize and confirm if they have or had not tried medications, physical therapy, or injections. Ask specifically if they mentioned injections, who did the injection and what date, how much relief was felt.  Make sure you ask about all these topics before starting to ask any open-ended questions like is there anything else i can help with today. Be concise and clinical. If they are complaining about neck pain, include a questions about balance changes, hand dexterity changes, or urinary changes."
+        "Explicitly ask or summarize and confirm if they have or had not tried medications, physical therapy, or injections. Ask specifically what medications they have been trying. if they mentioned injections, who did the injection and what date, how much relief was felt.  Make sure you ask about all these topics before starting to ask any open-ended questions like is there anything else i can help with today. Be concise and clinical. IF they are complaining about back pain, include question about bowel/bladder changes. If they are complaining about neck pain (only if they report neck pain), include questions about balance changes, hand dexterity changes, or urinary changes. WWhen you hvae collected all releveant information, you may conclude the conversation with - Thank you for sharing this information. Dr. Sing will be able to review this information and will be in shortly. Feel free to ask any additional questions or provide any more details, otherwise hit 'Stop Assistant'. "
         "- If asked about your well-being, provide a brief response about how you're feeling.\n\n"
         "Remember that you have a voice interface. You can listen and speak, and all your "
-        "responses will be spoken aloud."
+        "responses will be spoken aloud. Allow the patient 1.5 seconds of silence prior to responding."
     )
 
     # Deepgram provider configuration
@@ -101,7 +154,7 @@ def handle_connect():
     options.agent.listen.provider.model = "nova-3"
     options.agent.listen.provider.type = "deepgram"
     options.agent.speak.provider.type = "deepgram"
-    options.agent.speak.speed = 1.3
+    options.agent.speak.speed = 1.5
 
     # Sets Agent greeting
     options.agent.greeting = "Hello! I'm Dr. Sing's assistant. What brings you into the office today? Feel free to share as much details as possible."
@@ -237,11 +290,11 @@ def handle_summarize(data):
     transcript = data.get('transcript', '')
 
     system_prompt = (
-        "You are a medical scribe. Summarize the patient's responses into a formal structured HPI for a spine surgery consult. IF information is not available do not hallucinate and report unknown\n"
+        "You are a medical scribe. Summarize the provided transcripts into a formal structured note for a spine surgery consult. IF information is not available do not hallucinate, instead report unknown\n"
         "Specify laterality in the chief complaint (e.g., left, midline, bilateral right worse than left, etc). For PT and injections, "
         "include details such as dates, types, providers, and relief. Extract and format as:\n\n"
         "Chief Complaint:\nBrief History:\nDuration:\nRadiating Symptoms:\nAggravating/Relieving Factors:\nTried:\n"
-        "  - Medications:\n  - Therapy:\n  - Injections:\nOther relevant history:\n"
+        "  - Medications:\n  - Therapy:\n  - Injections:\nOther relevant history:\n \n Exam: \n Assessment: \n Discussion: \n Plan:"
     )
 
     response = client.chat.completions.create(

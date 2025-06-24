@@ -73,6 +73,16 @@
             margin-bottom: 5px;
             align-self: flex-start;
         }
+
+        .transcript-subbox {
+            flex: 1;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            padding: 10px;
+            overflow-y: auto;
+            background: #fff;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -80,7 +90,11 @@
     <!-- Left panel: transcript -->
     <div id="transcript-panel">
         <h2>Transcript</h2>
-        <div id="transcript-box"></div>
+        <h3>🗣️ Voice Agent Transcript</h3>
+        <div id="agent-transcript-box" class="transcript-subbox"></div>
+        
+        <h3>✍️ Scribe Mode Transcript</h3>
+        <div id="scribe-transcript-box" class="transcript-subbox"></div>
     </div>
 
     <!-- Right panel: summary -->
@@ -103,9 +117,9 @@
     });
 
     socket.on("new_transcript", (data) => {
-        console.log("📥 Transcript received:", data.transcript);
-        const transcriptBox = document.getElementById("transcript-box");
-        transcriptBox.innerHTML = '';
+        console.log("📥 Agent Transcript received:", data.transcript);
+        const agentBox = document.getElementById("agent-transcript-box");
+        agentBox.innerHTML = '';
 
         // Assume transcript is already an array of { role, content }
         const messages = data.transcript;
@@ -113,13 +127,27 @@
             messages.forEach(msg => {
                 const div = document.createElement('div');
                 div.className = msg.role === 'user' ? 'user' : 'assistant';
-                div.textContent = msg.content;
-                transcriptBox.appendChild(div);
+                div.textContent = `${msg.role}: ${msg.content}`;
+                agentBox.appendChild(div);
             });
         } else {
             console.warn("⚠️ Unexpected transcript format:", data.transcript);
         }
     });
+
+    socket.on("scribe_transcript", (data) => {
+        console.log("📥 Scribe Transcript received:", data.transcript);
+        const scribeBox = document.getElementById("scribe-transcript-box");
+        scribeBox.innerHTML = '';
+
+        data.transcript.forEach(msg => {
+            const div = document.createElement('div');
+            div.className = msg.role || 'user';
+            div.textContent = msg.content;
+            scribeBox.appendChild(div);
+        });
+    });
+
 
     socket.on("summary", (data) => {
         console.log("📄 Summary received:", data.summary);
@@ -130,16 +158,28 @@
 
     function generateSummary() {
         console.log("🧠 Generate Summary button clicked!");
-        const rawText = Array.from(document.querySelectorAll('#transcript-box div'))
+        const agentText = Array.from(document.querySelectorAll('#agent-transcript-box div'))
             .map(div => div.textContent)
             .join("\n");
-        socket.emit("summarize", { transcript: rawText });
+
+        const scribeText = Array.from(document.querySelectorAll('#scribe-transcript-box div'))
+            .map(div => div.textContent)
+            .join("\n");
+
+        const combinedText = agentText + "\n" + scribeText;
+
+        socket.emit("summarize", { transcript: combinedText });
+
+        console.log("🧠 Summary request sent with combined agent + scribe text.");
     }
 
     function resetDashboard() {
         // Clear transcript display
-        const transcriptBox = document.getElementById("transcript-box");
-        transcriptBox.innerHTML = "";
+        const scribeTBOX = document.getElementById("scribe-transcript-box");
+        scribeTBOX.innerHTML = "";
+
+        const agentTBOX = document.getElementById("agent-transcript-box");
+        agentTBOX.innerHTML = "";
 
         // Clear summary display
         const summaryBox = document.getElementById("summary-box");
