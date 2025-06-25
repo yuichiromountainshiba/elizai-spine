@@ -2,548 +2,125 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dr. Sing Robo MA Intake</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scribe Mode Only</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
     <style>
-        html,
         body {
-            height: 100%;
+            font-family: 'Helvetica Neue', sans-serif;
+            background-color: #f3f1ed;
             margin: 0;
-            padding: 0;
-            background: #f7f5f2;
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #333;
-            font-size: 18px;
-            overflow: hidden;
-        }
-    
-        #page-wrapper {
-            height: 100vh;
+            padding: 3em 1em;
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow: hidden;
+            color: #2e2e2e;
         }
     
         h1 {
-            font-size: 2em;
-            font-weight: 600;
-            color: #2c2c2c;
-            margin-top: 1.5em;
-            text-align: center;
-        }
-    
-        p {
-            font-size: 1.1em;
-            color: #666;
-            text-align: center;
-            margin: 0.25em 1em;
-        }
-    
-        #container {
-            flex: 1;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow: hidden;
-        }
-    
-        #transcription-box {
-            flex: 1;
-            width: 90%;
-            max-width: 600px;
             margin-bottom: 1em;
-            padding: 1em;
-            background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-    
-        #transcript {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            padding: 0.5em;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75em;
-            white-space: pre-wrap;
+            font-weight: 500;
+            color: #3c3c3c;
         }
     
         #controls {
-            width: 90%;
-            max-width: 600px;
             display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            padding-bottom: 1em;
+            gap: 1em;
         }
     
-        .user,
-        .assistant {
-            padding: 0.9em 1.2em;
-            border-radius: 20px;
-            max-width: 75%;
-            line-height: 1.5;
-            display: inline-block;
-            word-wrap: break-word;
+        #controls button {
+            padding: 0.75em 1.5em;
             font-size: 1.1em;
-            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-        }
-    
-        .user {
-            background: #e0dcd7;
-            color: #4a3c32;
-            align-self: flex-end;
-            text-align: right;
-            border-bottom-right-radius: 4px;
-        }
-    
-        .assistant {
-            background: #dde6df;
-            color: #2f3a2e;
-            align-self: flex-start;
-            text-align: left;
-            border-bottom-left-radius: 4px;
-        }
-    
-        button {
-            margin: 0.5em;
-            padding: 0.85em 1.35em;
-            font-size: 1.05em;
-            border-radius: 8px;
-            background: #a58f7f;
-            color: #fff;
             border: none;
+            border-radius: 10px;
+            background-color: #b8a295;
+            color: white;
             cursor: pointer;
-            transition: background 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
         }
     
-        button:hover {
-            background: #8d7768;
+        #controls button:hover {
+            background-color: #9e8679;
+        }
+    
+        #status {
+            margin-top: 2em;
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #444;
+        }
+    
+        .recording {
+            color: #4a7c59;
+        }
+    
+        .not-recording {
+            color: #c56c6c;
         }
     
         </style>
-</head>
+    </head>
 
-<body> <div id="page-wrapper">
-    <h1>Dr. Sing Robo MA Intake</h1>
-    <p>I am Dr Sing's Robot Medical Assistant.</p>
-    <p>Please allow me to finish speaking before responding!</p>
+<body>
+    <h1>ElizAI Spine</h1>
+    <div id="controls">
+        <button id="startScribe">Start Scribe</button>
+        <button id="endScribe" disabled>End Scribe</button>
+    </div>
+    <div id="status" class="not-recording">Not Recording</div>
+
     <script>
-        let socket;
-        let mediaStream;
-        let audioContext;
-        let processor;
-        let isConnected = false;
-        let audioQueue = []; // Queue for managing incoming audio chunks
-        let isPlaying = false; // Flag to track if we're currently playing audio
-        let selectedDeviceId;
+        const socket = io();
+        const startBtn = document.getElementById("startScribe");
+        const endBtn = document.getElementById("endScribe");
+        const statusIndicator = document.getElementById("status");
+
         let mediaRecorder;
-        let audioStream;
-        let isRecording = true;
-        let transcriptHistory = "";
+        let recordedChunks = [];
+        let sessionId = prompt("Enter session ID:");
 
+        startBtn.onclick = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            recordedChunks = [];
 
-        async function init() {
-            try {
-                console.log("✅ init() called");
-                // Create audio context early
-                audioContext = new AudioContext({
-                    sampleRate: 16000 // Match the Deepgram sample rate
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(recordedChunks, { type: "audio/m4a" });
+                const formData = new FormData();
+                formData.append("file", blob, "scribe.m4a");
+
+                fetch(`/upload_scribe?session_id=${sessionId}`, {
+                    method: "POST",
+                    body: formData,
                 });
 
-                // Get microphone permission with specific constraints
-                const constraints = {
-                    audio: {
-                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-                        channelCount: 1,
-                        sampleRate: 16000,
-                        echoCancellation: false,  // Can be toggled
-                        noiseSuppression: false,  // Can be toggled
-                        autoGainControl: false,   // Can be toggled
-                        latency: 0,              // Minimize latency
-                        // Advanced constraints for better control
-                        googEchoCancellation: false,
-                        googAutoGainControl: false,
-                        googNoiseSuppression: false,
-                        googHighpassFilter: true
-                    }
-                };
-                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                statusIndicator.textContent = "Not Recording";
+                statusIndicator.classList.remove("recording");
+                statusIndicator.classList.add("not-recording");
+            };
 
+            mediaRecorder.start();
+            startBtn.disabled = true;
+            endBtn.disabled = false;
 
-                // Connect to Socket.IO server
-                //socket = io('http://localhost:3000', {
-                socket = io('https://lobster-advanced-specially.ngrok-free.app',{
-                    path: '/socket.io'
-                });
+            statusIndicator.textContent = "Recording...";
+            statusIndicator.classList.remove("not-recording");
+            statusIndicator.classList.add("recording");
+        };
 
-                socket.on('connect', () => {
-                    console.log('Connected to server');
-                    isConnected = true;
-                    startStreaming();
-                });
+        endBtn.onclick = () => {
+            mediaRecorder.stop();
+            startBtn.disabled = false;
+            endBtn.disabled = true;
 
-                socket.on('disconnect', () => {
-                    console.log('Disconnected from server');
-                    isConnected = false;
-                    stopStreaming();
-                });
-
-                socket.on('error', (data) => {
-                    console.error('Server error details:', JSON.stringify(data, null, 2));
-                });
-
-                socket.on('agent_speaking', (data) => {
-                    console.log('Received agent speaking event:', data);
-                    if (data.audio) {
-                        console.log('Audio data received:', data.audio.length, 'bytes');
-                        const audioData = new Int16Array(data.audio);
-                        audioQueue.push(audioData);
-                        if (!isPlaying) {
-                            playNextInQueue();
-                        }
-                    } else {
-                        console.log('No audio data in agent_speaking event');
-                    }
-                });
-
-                socket.on('conversation', (event) => {
-                    console.log("🎧 Received 'conversation' event:", event);
-                    const data = event?.data;
-                    const content = data?.content;
-                    const role = data?.role;
-
-                    // if (content && role) {
-                    //     const transcriptBox = document.getElementById('transcript');
-                    //     const color = role === 'user' ? 'red' : 'black';
-
-                    //     const alignment = role === 'user' ? 'right' : 'left';
-                    //     const line = <div style="color:${color}; text-align:${alignment}; margin-bottom: 5px;">${content}</div>;
-
-
-                    //     transcriptBox.innerHTML += line;
-                    //     transcriptBox.scrollTop = transcriptBox.scrollHeight;
-                    // } else {
-                    //     console.warn('⚠️ Missing content or role:', event);
-                    // }
-                    if (content && role) {
-                        const transcriptBox = document.getElementById('transcript');
-
-                        // Create a bubble div with the appropriate class
-                        const bubble = document.createElement('div');
-                        bubble.className = role === 'user' ? 'user' : 'assistant';
-                        bubble.textContent = content;
-
-                        transcriptBox.appendChild(bubble);
-                        transcriptBox.scrollTop = transcriptBox.scrollHeight;
-                    } else {
-                        console.warn('⚠️ Missing content or role:', event);
-                    }
-                    // Update the live transcription box
-                    //document.getElementById('transcript-box').innerText = transcriptHistory;
-                    if (content) {
-                        transcriptHistory += `${role === 'user' ? '[Patient]' : '[Assistant]'}: ${content} \n`;
-                    }
-                });
-
-                socket.onAny((event, data) => {
-                    console.log(`📡 onAny received: ${event}`, data);
-                });
-
-                document.getElementById('restartButton').addEventListener('click', () => {
-                    // Clear the transcript visually
-                    document.getElementById('transcript').innerHTML = '';
-
-                    // Hide and disable Scribe Mode UI
-                    document.getElementById('scribeModeBtn').style.display = 'none';
-                    document.getElementById('endScribeBtn').style.display = 'none';
-                    document.getElementById('scribeModeBtn').disabled = true;
-                    document.getElementById('endScribeBtn').disabled = true;
-
-                    // Enable the stop button again
-                    document.getElementById('stopRecordingBtn').disabled = false;
-
-                    // Notify the server to restart the assistant
-                    if (socket && socket.connected) {
-                        socket.emit('restart');
-                        console.log('🔄 Restart request sent to server');
-                    }
-                });
-                let scribeRecorder;
-                let scribeChunks = [];
-                document.getElementById('stopRecordingBtn').addEventListener('click', () => {
-                    socket.emit('stop_recording');
-                    console.log("🛑 Stop button clicked. Emitted 'stop_recording' to server.");
-                    document.getElementById('scribeModeBtn').disabled = false;
-                    document.getElementById('endScribeBtn').disabled = false;
-                    document.getElementById('scribeModeBtn').style.display = 'inline-block';
-                    const transcriptDivs = Array.from(document.querySelectorAll('#transcript div'));
-                    const structuredTranscript = transcriptDivs.map(div => ({
-                        role: div.classList.contains('user') ? 'user' : 'assistant',
-                        content: div.textContent
-                    }));
-
-                    fetch('/save_transcript', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ transcript: structuredTranscript })  // remove inner stringify
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log('✅ Transcript sent to dashboard:', data);
-                        })
-                        .catch(error => {
-                            console.error('❌ Error sending transcript:', error);
-                        });
-
-                    document.getElementById('transcript').innerHTML += `<div style="color:gray"><em>🛑 Assistant paused.</em></div>`;
-                });
-                document.getElementById('scribeModeBtn').addEventListener('click', async () => {
-                    console.log("✍️ Scribe Mode started.");
-
-                    // Disable stop & reset
-                    document.getElementById('restartButton').disabled = true;
-                    document.getElementById('stopRecordingBtn').disabled = true;
-
-                    // Show end button
-                    document.getElementById('endScribeBtn').style.display = 'inline-block';
-
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    scribeRecorder = new MediaRecorder(stream);
-                    scribeChunks = [];
-
-                    scribeRecorder.ondataavailable = e => scribeChunks.push(e.data);
-
-                    scribeRecorder.onstop = async () => {
-                        const blob = new Blob(scribeChunks, { type: 'audio/m4a' });
-                        const formData = new FormData();
-                        formData.append("file", blob, "scribe.m4a");
-
-                        console.log("📤 Uploading M4A for transcription...");
-                        const response = await fetch('/upload_scribe', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const result = await response.json();
-                        console.log("📝 Transcription result:", result);
-
-                        if (result.status === 'success') {
-                            // Append to transcript visually
-                            const transcriptBox = document.getElementById("scribe-transcript-box");
-                            result.transcript.forEach(msg => {
-                                const div = document.createElement("div");
-                                div.className = msg.role;
-                                div.textContent = msg.content;
-                                transcriptBox.appendChild(div);
-                            });
-                        }
-
-                        // Reset UI
-                        document.getElementById('restartButton').disabled = false;
-                        document.getElementById('scribeModeBtn').style.display = 'none';
-                        document.getElementById('endScribeBtn').style.display = 'none';
-                    };
-
-                    scribeRecorder.start();
-                });
-
-                document.getElementById('endScribeBtn').addEventListener('click', () => {
-                    console.log("✅ Ending Scribe Mode...");
-                    scribeRecorder.stop();
-                });
-
-
-            } catch (error) {
-                console.error('Error initializing:', error);
-            }
-        }
-
-        async function setupAudioProcessing() {
-            const source = audioContext.createMediaStreamSource(mediaStream);
-
-            // Gain control
-            const gainNode = audioContext.createGain();
-
-            // Analyzer for volume monitoring
-            const analyser = audioContext.createAnalyser();
-            analyser.fftSize = 1024;
-
-            // Worklet processor for better performance
-            const processor = audioContext.createScriptProcessor(2048, 1, 1);
-
-            // Connect the chain
-            source
-                .connect(gainNode)
-                .connect(analyser)
-                .connect(processor)
-                .connect(audioContext.destination);
-
-            return { gainNode, analyser, processor };
-        }
-
-        function startStreaming() {
-            if (!mediaStream || !isConnected) return;
-
-            try {
-                const source = audioContext.createMediaStreamSource(mediaStream);
-
-                // Create a worklet for better audio processing
-                const bufferSize = 2048;
-                processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
-
-                source.connect(processor);
-                processor.connect(audioContext.destination);
-
-                let lastSendTime = 0;
-                const sendInterval = 100; // Send every 100ms
-
-                processor.onaudioprocess = (e) => {
-                    const now = Date.now();
-                    if (socket?.connected && now - lastSendTime >= sendInterval) {
-                        const inputData = e.inputBuffer.getChannelData(0);
-                        const pcmData = convertFloatToPcm(inputData);
-                        console.log('Sending audio data:', {
-                            samples: pcmData.length,
-                            sampleRate: audioContext.sampleRate,
-                            interval: now - lastSendTime
-                        });
-                        // Send as binary data
-                        socket.emit('audio_data', pcmData, { binary: true });
-                        console.log
-                        lastSendTime = now;
-                    }
-                };
-            } catch (error) {
-                console.error('Error starting audio stream:', error);
-            }
-        }
-
-        function convertFloatToPcm(floatData) {
-            const pcmData = new Int16Array(floatData.length);
-            for (let i = 0; i < floatData.length; i++) {
-                const s = Math.max(-1, Math.min(1, floatData[i]));
-                pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-            }
-            return pcmData;
-        }
-
-        async function playNextInQueue() {
-            if (audioQueue.length === 0) {
-                isPlaying = false;
-                return;
-            }
-
-            isPlaying = true;
-            const audioData = audioQueue.shift();
-
-            try {
-                // Ensure audio context is running
-                if (audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                }
-
-                // Create buffer with correct sample rate for agent's audio (24000Hz)
-                const buffer = audioContext.createBuffer(1, audioData.length, 24000);
-                const channelData = buffer.getChannelData(0);
-
-                // Convert Int16 to Float32 with proper scaling
-                for (let i = 0; i < audioData.length; i++) {
-                    // Normalize to [-1, 1] range
-                    channelData[i] = audioData[i] / 32768.0;  // Simplified normalization
-                }
-
-                // Create and configure source
-                const source = audioContext.createBufferSource();
-                source.buffer = buffer;
-
-                // Connect directly to destination for lower latency
-                source.connect(audioContext.destination);
-
-                // Handle playback completion
-                source.onended = () => {
-                    playNextInQueue(); // Play next chunk when current one ends
-                };
-
-                // Start playback immediately
-                source.start(0);
-            } catch (error) {
-                console.error('Error playing audio:', error);
-                isPlaying = false;
-                playNextInQueue(); // Try next chunk if current fails
-            }
-        }
-
-        function stopStreaming() {
-            audioQueue = []; // Clear audio queue
-            isPlaying = false;
-            if (processor) {
-                processor.disconnect();
-                processor = null;
-            }
-            if (audioContext) {
-                audioContext.close();
-                audioContext = null;
-            }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-            isConnected = false;
-        }
-
-        function initializeVolumeMeter(analyser) {
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-
-            function updateMeter() {
-                analyser.getByteFrequencyData(dataArray);
-                const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-                const volume = Math.min(100, average * 2);
-                // Update UI with volume level
-                requestAnimationFrame(updateMeter);
-            }
-
-            updateMeter();
-        }
-
-        async function getAudioDevices() {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            return devices.filter(device => device.kind === 'audioinput');
-        }
-
-        // Initialize when the page loads
-        window.onload = init;
-
-        // Clean up when the page is closed
-        window.onbeforeunload = () => {
-            stopStreaming();
-            if (socket) {
-                socket.close();
-            }
+            socket.emit("reset_dashboard", { session_id: sessionId });
         };
     </script>
-    
-    <div id="container">
-        <div id="transcription-box" style="padding: 1em; border: 1px solid #ccc; margin-top: 1em;">
-            <strong>Live Transcription:</strong>
-            <p id="transcript" style="white-space: pre-line;"></p>
-            </div>
-        
-        <div id="controls">
-            <button id="restartButton">🔄 Restart Assistant</button>
-            <button id="stopRecordingBtn">Stop Assistant</button>
-            <button id="scribeModeBtn" style="display:none;">✍️ Scribe Mode</button>
-            <button id="endScribeBtn" style="display:none;">✅ End Scribe Mode</button>
-        </div>
-    </div>
-</div>
-</body>
+    </body>
 </html>

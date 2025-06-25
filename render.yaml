@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: elizai-scribe
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    envVars:
+      - key: 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
+        value: be4a375ed78fb7f821acc14e8b4a995e4d908406

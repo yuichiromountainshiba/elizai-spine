@@ -7,94 +7,115 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Helvetica Neue', sans-serif;
             margin: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            background: #f4f1ed;
+            color: #2f2f2f;
         }
-
+    
+        h2,
+        h3 {
+            margin: 0.5em 0;
+            font-weight: 500;
+            color: #4e4e4e;
+        }
+    
         #dashboard {
             display: flex;
             flex: 1;
+            padding: 20px;
+            gap: 20px;
+            box-sizing: border-box;
         }
-
+    
         #transcript-panel,
         #summary-panel {
             flex: 1;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             padding: 20px;
             display: flex;
             flex-direction: column;
         }
-
-        h2 {
-            margin-top: 0;
-        }
-
-        #transcript-box {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5em;
-            overflow-y: auto;
+    
+        .transcript-subbox {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            font-size: 16px;
+            border: 1px solid #ddd;
+            padding: 16px;
+            border-radius: 10px;
+            overflow-y: auto;
+            background: #fafafa;
             white-space: pre-wrap;
-            background: #fff;
+            font-size: 15px;
         }
+    
 
         #summary-box {
             flex: 1;
-            resize: none;
-            padding: 10px;
-            font-size: 14px;
-            margin-top: 10px;
+            padding: 16px;
+            font-size: 16px;
+            line-height: 1.6;
+            background: #fafafa;
             border: 1px solid #ccc;
-            white-space: pre-wrap;
+            border-radius: 12px;
+            overflow-y: auto;
+            white-space: normal; /* allow wrapping */
         }
-
+    
         button {
-            padding: 8px 14px;
-            font-size: 14px;
+            padding: 10px 16px;
+            font-size: 15px;
             margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            background-color: #b8a295;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s ease;
         }
-
+    
+        button:hover {
+            background-color: #9e8679;
+        }
+    
         .user {
-            color: red;
+            color: #7a4b3a;
             text-align: right;
             margin-bottom: 5px;
             align-self: flex-end;
         }
-
+    
         .assistant {
-            color: black;
+            color: #38433c;
             text-align: left;
             margin-bottom: 5px;
             align-self: flex-start;
         }
-
-        .transcript-subbox {
-            flex: 1;
-            border: 1px solid #ccc;
-            margin-bottom: 10px;
-            padding: 10px;
-            overflow-y: auto;
-            background: #fff;
-            white-space: pre-wrap;
+    
+        #transcript {
+            width: 100%;
+            margin-top: 1em;
         }
-    </style>
+    
+        #reset-button {
+            align-self: center;
+            margin: 1em auto;
+            background: #cfc4b8;
+        }
+    
+        </style>
 </head>
 <body>
 <div id="dashboard">
     <!-- Left panel: transcript -->
     <div id="transcript-panel">
-        <h2>Transcript</h2>
-        <h3>🗣️ Voice Agent Transcript</h3>
-        <div id="agent-transcript-box" class="transcript-subbox"></div>
-        
-        <h3>✍️ Scribe Mode Transcript</h3>
+        <h2>✍️ ElizAI Spine Mode </h2>
         <div id="scribe-transcript-box" class="transcript-subbox"></div>
+        <div id="transcript" style="width: 80%; max-width: 800px; margin-top: 1em;"></div>
     </div>
 
     <!-- Right panel: summary -->
@@ -108,42 +129,16 @@
 <button onclick="resetDashboard()">🧹 Reset Dashboard</button>
 
 <script>
-    //const socket = io("http://localhost:3000", {
-    const socket = io('https://lobster-advanced-specially.ngrok-free.app', {
-        path: "/socket.io"
-    });
-    socket.on("connect", () => {
-        console.log("✅ Connected to server");
-    });
-
-    socket.on("new_transcript", (data) => {
-        console.log("📥 Agent Transcript received:", data.transcript);
-        const agentBox = document.getElementById("agent-transcript-box");
-        agentBox.innerHTML = '';
-
-        // Assume transcript is already an array of { role, content }
-        const messages = data.transcript;
-        if (Array.isArray(messages)) {
-            messages.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = msg.role === 'user' ? 'user' : 'assistant';
-                div.textContent = `${msg.role}: ${msg.content}`;
-                agentBox.appendChild(div);
-            });
-        } else {
-            console.warn("⚠️ Unexpected transcript format:", data.transcript);
-        }
-    });
+    const socket = io();
+    const scribeBox = document.getElementById("scribe-transcript-box");
+    let sessionId = prompt("Enter session ID:");
 
     socket.on("scribe_transcript", (data) => {
         console.log("📥 Scribe Transcript received:", data.transcript);
-        const scribeBox = document.getElementById("scribe-transcript-box");
-        scribeBox.innerHTML = '';
-
+        if (data.session_id !== sessionId) return;
         data.transcript.forEach(msg => {
-            const div = document.createElement('div');
-            div.className = msg.role || 'user';
-            div.textContent = msg.content;
+            const div = document.createElement("div");
+            div.textContent = `${msg.role}: ${msg.content}`;
             scribeBox.appendChild(div);
         });
     });
@@ -152,38 +147,55 @@
     socket.on("summary", (data) => {
         console.log("📄 Summary received:", data.summary);
         if (data.summary) {
-            document.getElementById("summary-box").innerText = data.summary;
+            document.getElementById("summary-box").innerHTML = data.summary;
         }
+    });
+
+    socket.on("reset_dashboard", (data) => {
+        if (data.session_id !== sessionId) return;
+
+        document.getElementById("scribe-transcript-box").innerHTML = "";
+        document.getElementById("summary-box").innerHTML = "";
+
+        console.log("📭 Dashboard reset triggered by index.");
     });
 
     function generateSummary() {
         console.log("🧠 Generate Summary button clicked!");
-        const agentText = Array.from(document.querySelectorAll('#agent-transcript-box div'))
-            .map(div => div.textContent)
-            .join("\n");
 
         const scribeText = Array.from(document.querySelectorAll('#scribe-transcript-box div'))
             .map(div => div.textContent)
             .join("\n");
 
-        const combinedText = agentText + "\n" + scribeText;
+        
 
-        socket.emit("summarize", { transcript: combinedText });
+        socket.emit("summarize", { transcript: scribeText });
 
-        console.log("🧠 Summary request sent with combined agent + scribe text.");
+        console.log("🧠 Summary request sent with  scribe text.");
     }
+
+    function generateFollowup() {
+            console.log("🧠 Generate Summary button clicked!");
+
+            const scribeText = Array.from(document.querySelectorAll('#scribe-transcript-box div'))
+                .map(div => div.textContent)
+                .join("\n");
+
+
+
+            socket.emit("summarize", { transcript: scribeText });
+
+            console.log("🧠 Summary request sent with  scribe text.");
+        }
 
     function resetDashboard() {
         // Clear transcript display
         const scribeTBOX = document.getElementById("scribe-transcript-box");
         scribeTBOX.innerHTML = "";
 
-        const agentTBOX = document.getElementById("agent-transcript-box");
-        agentTBOX.innerHTML = "";
-
         // Clear summary display
         const summaryBox = document.getElementById("summary-box");
-        summaryBox.innerText = "";
+        summaryBox.innerHTML = "";
 
         console.log("🧼 Dashboard reset for next patient.");
     }
