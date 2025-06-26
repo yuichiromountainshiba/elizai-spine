@@ -106,10 +106,33 @@
             margin: 1em auto;
             background: #cfc4b8;
         }
+
+        #qr-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 1em;
+        }
+
+        #qrcode-canvas {
+            margin-top: 0.5em;
+            width: 120px !important;
+            height: 120px !important;
+        }
+
+        @media (max-width: 480px) {
+            #qrcode-canvas {
+                width: 100px !important;
+                height: 100px !important;
+            }
+        }
     
         </style>
 </head>
 <body>
+<div id="qr-wrapper">
+    <h3>📱 Open Scribe Recorder on Phone:</h3>
+    <canvas id="qrcode-canvas" width="120" height="120"></canvas></div>
 <div id="dashboard">
     <!-- Left panel: transcript -->
     <div id="transcript-panel">
@@ -122,7 +145,10 @@
     <div id="summary-panel">
         <h2>Summary</h2>
         <div id="summary-box"></div>
-        <button onclick="generateSummary()">🧠 Generate Summary</button>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+            <button onclick="generateSummary()">🧠 Generate New Consult</button>
+            <button onclick="generateFU()">📝 Generate Follow-up Note</button>    
+        </div>
     </div>
 </div>
 
@@ -146,10 +172,9 @@
 
     socket.on("summary", (data) => {
         console.log("📄 Summary received:", data.summary);
-        if (data.summary) {
-            document.getElementById("summary-box").innerHTML = data.summary;
-        }
-    });
+        if (data.session_id !== sessionId) return;
+        document.getElementById("summary-box").innerHTML = data.summary;
+      });
 
     socket.on("reset_dashboard", (data) => {
         if (data.session_id !== sessionId) return;
@@ -169,13 +194,13 @@
 
         
 
-        socket.emit("summarize", { transcript: scribeText });
+        socket.emit("summarize", { transcript: scribeText, session_id: sessionId  });
 
         console.log("🧠 Summary request sent with  scribe text.");
     }
 
     function generateFollowup() {
-            console.log("🧠 Generate Summary button clicked!");
+            console.log("🧠 Generate Follow-up button clicked!");
 
             const scribeText = Array.from(document.querySelectorAll('#scribe-transcript-box div'))
                 .map(div => div.textContent)
@@ -183,9 +208,9 @@
 
 
 
-            socket.emit("summarize", { transcript: scribeText });
+            socket.emit("summarizeFU", { transcript: scribeText, session_id: sessionId });
 
-            console.log("🧠 Summary request sent with  scribe text.");
+            console.log("🧠 FU request sent with  scribe text.");
         }
 
     function resetDashboard() {
@@ -199,6 +224,18 @@
 
         console.log("🧼 Dashboard reset for next patient.");
     }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('qrcode-canvas');
+        const phoneURL = "https://elizai-spine.onrender.com/"; // 🔁 REPLACE with actual index page URL
+
+        QRCode.toCanvas(canvas, phoneURL, function (error) {
+            if (error) console.error('QR code error:', error);
+            console.log('✅ QR code generated for constant URL');
+        });
+    });
 </script>
 </body>
 </html>

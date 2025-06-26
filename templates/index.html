@@ -80,8 +80,30 @@
         let mediaRecorder;
         let recordedChunks = [];
         let sessionId = prompt("Enter session ID:");
+        
+        let wakeLock = null;
+
+            async function requestWakeLock() {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('✅ Wake Lock is active');
+                    wakeLock.addEventListener('release', () => {
+                        console.log('❌ Wake Lock was released');
+                    });
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+
+            async function releaseWakeLock() {
+                if (wakeLock !== null) {
+                    await wakeLock.release();
+                    wakeLock = null;
+                }
+            }
 
         startBtn.onclick = async () => {
+            await requestWakeLock();
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
             recordedChunks = [];
@@ -114,7 +136,8 @@
             statusIndicator.classList.add("recording");
         };
 
-        endBtn.onclick = () => {
+        endBtn.onclick =  async () => {
+            await releaseWakeLock();
             mediaRecorder.stop();
             startBtn.disabled = false;
             endBtn.disabled = true;

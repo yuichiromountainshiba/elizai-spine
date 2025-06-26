@@ -124,30 +124,16 @@ def handle_reset_dashboard(data):
 
 @socketio.on('summarize')
 def handle_summarize(data):
+    session_id = data.get("session_id")
     print("🧠 Summarize event received with data:", data)
     transcript = data.get('transcript', '')
 
     system_prompt = (
         "You are a medical scribe. Summarize the provided transcripts into a formal structured note for a spine surgery consult. IF information is not available do not hallucinate, instead report unknown<br>"
         "Specify laterality in the chief complaint (e.g., left, midline, bilateral right worse than left, etc). For PT and injections, "
-        "include details such as dates, types, providers, and relief. Extract and format in html with formatting, no title needed, omit markdown rendering tags, i am inputting this summary to a webapp."
+        "include details such as dates, types, providers, and relief. Extract and format in html with formatting, no title needed, omit markdown rendering tags, Do not wrap section headers in angle brackets (<>). Use valid HTML tags only. i am inputting this summary to a webapp."
         "Chief Complaint:\nBrief History:\nDuration:\nRadiating Symptoms:\nAggravating/Relieving Factors:\nTried:\n"
         "  - Medications:\n  - Therapy:\n  - Injections:\nOther relevant history:\n \n Exam: \n Assessment: \n Discussion: \n Plan:"
-
-        # "<b>Chief Complaint:</b> \n "
-        # "<br><b>Brief History:</b> \n "
-        # "<br><b>Duration:</b>\n"
-        # "<br><b>Radiating Symptoms:</b> \n"
-        # "<br><b>Aggravating/Relieving Factors:</b> \n"
-        # "<br><b>Tried:</b> \n" 
-        # "<br>  - <b>Medications:</b> \n"
-        # "<br>  - <b>Therapy:</b> \n"
-        # "<br>  - <b>Injections:</b> \n "
-        # "<br> <b>Other relevant history:</b>\n"
-        # "<br> <br> <b>Exam: </b> \n"
-        # "<br> <b>Assessment: </b>\n"
-        # "<br> <b>Discussion:</b> \n"
-        # "<br> <b>Plan:</b>"
     )
 
     response = client.chat.completions.create(
@@ -160,7 +146,32 @@ def handle_summarize(data):
     )
 
     summary = response.choices[0].message.content
-    socketio.emit('summary', {'summary': summary})
+    socketio.emit('summary', {'summary': summary, 'session_id': session_id})
+
+
+@socketio.on('summarizeFU')
+def handle_summarize(data):
+    session_id = data.get("session_id")
+    print("🧠 Summarize follow-up received with data:", data)
+    transcript = data.get('transcript', '')
+
+    system_prompt = (
+        "You are a medical scribe. Summarize the provided transcripts into a follow-up progress note with the format of Interval history: (any change in symptoms, if no exam mentioned in discussion document no significant changes in exam, and any other relevant history that may affect the plan) and Assessment/Plan:. IF information is not available do not hallucinate, instead report unknown"
+        " Extract and format in html with formatting, no title needed, omit markdown rendering tags,Do not wrap section headers in angle brackets (<>). Use valid HTML tags only.  i am inputting this summary to a webapp."
+
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": transcript}
+        ],
+        temperature=0.3,
+    )
+
+    summary = response.choices[0].message.content
+    socketio.emit('summary', {'summary': summary, 'session_id': session_id})
 
 
 if __name__ == '__main__':
