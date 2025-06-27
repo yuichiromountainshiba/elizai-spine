@@ -199,19 +199,19 @@
         console.log("🧠 Summary request sent with  scribe text.");
     }
 
-    function generateFollowup() {
-            console.log("🧠 Generate Follow-up button clicked!");
+    function generateFU() {
+        console.log("🧠 Generate Follow-up button clicked!");
 
-            const scribeText = Array.from(document.querySelectorAll('#scribe-transcript-box div'))
-                .map(div => div.textContent)
-                .join("\n");
+        const scribeText = Array.from(document.querySelectorAll('#scribe-transcript-box div'))
+            .map(div => div.textContent)
+            .join("\n");
 
 
 
-            socket.emit("summarizeFU", { transcript: scribeText, session_id: sessionId });
+        socket.emit("summarizeFU", { transcript: scribeText, session_id: sessionId });
 
-            console.log("🧠 FU request sent with  scribe text.");
-        }
+        console.log("🧠 FU request sent with  scribe text.");
+    }
 
     function resetDashboard() {
         // Clear transcript display
